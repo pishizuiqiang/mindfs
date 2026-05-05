@@ -1,5 +1,4 @@
 {
-  "relayBaseURL": "https://relay.a9gent.com",
   "agents": [
     {
       "name": "gemini",

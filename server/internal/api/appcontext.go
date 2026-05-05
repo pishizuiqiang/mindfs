@@ -13,7 +13,6 @@ import (
 	"mindfs/server/internal/fs"
 	"mindfs/server/internal/githubimport"
 	"mindfs/server/internal/preferences"
-	"mindfs/server/internal/relay"
 	"mindfs/server/internal/session"
 	"mindfs/server/internal/update"
 )
@@ -28,8 +27,6 @@ type AppContext struct {
 	Dirs      *fs.Registry
 	Agents    *agent.Pool
 	Prober    *agent.Prober
-	Relay     *relay.Manager
-	RelayTips *relay.TipsService
 	Update    *update.Service
 	GitHub    *githubimport.Service
 	E2EE      *e2ee.Manager
@@ -196,14 +193,6 @@ func (s *AppContext) GetProber() *agent.Prober {
 
 func (s *AppContext) GetDirRegistry() *fs.Registry {
 	return s.Dirs
-}
-
-func (s *AppContext) GetRelayManager() *relay.Manager {
-	return s.Relay
-}
-
-func (s *AppContext) GetRelayTipsService() *relay.TipsService {
-	return s.RelayTips
 }
 
 func (s *AppContext) GetUpdateService() *update.Service {

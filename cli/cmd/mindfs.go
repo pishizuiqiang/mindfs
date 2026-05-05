@@ -58,7 +58,6 @@ func main() {
 	}
 
 	addr := flag.String("addr", "127.0.0.1:7331", "listen address")
-	noRelayer := flag.Bool("no-relayer", false, "disable relay integration")
 	e2eeFlag := flag.Bool("e2ee", false, "enable end-to-end encryption for sensitive data")
 	foreground := flag.Bool("foreground", false, "run in the foreground instead of as a background service")
 	stop := flag.Bool("stop", false, "stop the background mindfs service")
@@ -198,7 +197,6 @@ func main() {
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- app.Start(ctx, *addr, app.StartOptions{
-			NoRelayer:  *noRelayer,
 			Version:    version,
 			Args:       os.Args[1:],
 			E2EEConfig: e2eeResult.Config,
@@ -495,15 +493,6 @@ type managedDirResponse struct {
 	RootPath string `json:"root_path"`
 }
 
-type relayStatusResponse struct {
-	Bound        bool   `json:"relay_bound"`
-	NoRelayer    bool   `json:"no_relayer"`
-	PendingCode  string `json:"pending_code"`
-	NodeID       string `json:"node_id"`
-	RelayBaseURL string `json:"relay_base_url"`
-	NodeURL      string `json:"node_url"`
-}
-
 func addManagedDir(addr string, useTLS bool, path string) (managedDirResponse, error) {
 	url := addrToURL(addr, "/api/dirs", useTLS)
 	body, err := json.Marshal(map[string]any{"path": path})
@@ -580,49 +569,8 @@ func handleRemoveRoot(addr string, useTLS bool, path string) error {
 	return removeManagedDirFromRegistry(path)
 }
 
-func fetchRelayStatus(addr string, useTLS bool) (relayStatusResponse, error) {
-	url := addrToURL(addr, "/api/relay/status", useTLS)
-	client := newHTTPClient(useTLS, 3*time.Second)
-	resp, err := client.Get(url)
-	if err != nil {
-		return relayStatusResponse{}, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		payload, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		message := strings.TrimSpace(string(payload))
-		if message == "" {
-			message = resp.Status
-		}
-		return relayStatusResponse{}, fmt.Errorf("failed to fetch relay status: %s", message)
-	}
-	var out relayStatusResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return relayStatusResponse{}, err
-	}
-	return out, nil
-}
-
 func openTarget(addr string, useTLS bool, rootID string) error {
-	status, err := fetchRelayStatus(addr, useTLS)
-	if err != nil {
-		return err
-	}
-	target := ""
-	if status.Bound && strings.TrimSpace(status.NodeURL) != "" {
-		u, err := url.Parse(status.NodeURL)
-		if err != nil {
-			return err
-		}
-		if strings.TrimSpace(rootID) != "" {
-			q := u.Query()
-			q.Set("root", rootID)
-			u.RawQuery = q.Encode()
-		}
-		target = u.String()
-	} else {
-		target = localOpenURL(addr, useTLS, rootID)
-	}
+	target := localOpenURL(addr, useTLS, rootID)
 	return openBrowser(target)
 }
 

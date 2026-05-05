@@ -50,7 +50,6 @@
 ### 访问模式
 
 - **本地模式**：服务启动后即可在局域网内通过浏览器访问，无需任何账号或配置。
-- **Relay 远程模式**：无需开放防火墙端口，通过relayer从公网任意设备访问本地实例，实现随时随地的 agent 访问。（本地模式页面中点击绑定按钮）
 - **私有通道**：通过私有通道（tailscale等），直接通过 ip:port 访问。
 - **端到端加密**：会话、文件支持端到端加密保护。
 
@@ -148,12 +147,6 @@ mindfs -tls -cert /path/to/cert.pem -key /path/to/key.pem
 
 MindFS 会自动探测已安装 Agent 的可用性，通常需要大约一分钟。
 
-### 通过 relayer远程访问
-
-1. 本地模式打开 mindfs 页面，点击左下角绑定按钮。
-2. 登录 relayer，确认绑定。
-3. 打开节点。
-
 ### 常用命令
 
 ```
@@ -161,7 +154,6 @@ mindfs [flags] [root]
 
 Flags:
   -addr string   监听地址（默认 ":7331"）
-  -no-relayer    禁用 Relay 集成
   -remove        从运行中的服务器移除托管目录
   -tls           启用 HTTPS（如未指定 -cert/-key，则自动生成自签名证书）
   -cert string   TLS 证书文件（PEM）；需配合 -tls 使用

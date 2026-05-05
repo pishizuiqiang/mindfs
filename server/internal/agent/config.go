@@ -12,8 +12,7 @@ import (
 
 // Config holds all agent configurations.
 type Config struct {
-	Agents       []Definition `json:"agents"`
-	RelayBaseURL string       `json:"relayBaseURL,omitempty"`
+	Agents []Definition `json:"agents"`
 }
 
 // Definition defines how to spawn and communicate with an agent.
@@ -73,7 +72,6 @@ func LoadConfig(path string) (Config, error) {
 		return Config{}, err
 	}
 	// Apply defaults and validate.
-	cfg.RelayBaseURL = strings.TrimSpace(cfg.RelayBaseURL)
 	for i := range cfg.Agents {
 		name := strings.TrimSpace(cfg.Agents[i].Name)
 		if name == "" {

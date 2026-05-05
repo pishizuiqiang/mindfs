@@ -15,7 +15,6 @@ import (
 	"mindfs/server/internal/fs"
 	"mindfs/server/internal/githubimport"
 	"mindfs/server/internal/preferences"
-	"mindfs/server/internal/relay"
 	"mindfs/server/internal/tlsutil"
 	"mindfs/server/internal/update"
 )
@@ -23,14 +22,12 @@ import (
 const staticDirEnvKey = "MINDFS_STATIC_DIR"
 
 type StartOptions struct {
-	NoRelayer    bool
-	RelayBaseURL string
-	Version      string
-	Args         []string
-	E2EEConfig   E2EEConfig
-	UseTLS       bool
-	CertFile     string
-	KeyFile      string
+	Version    string
+	Args       []string
+	E2EEConfig E2EEConfig
+	UseTLS     bool
+	CertFile   string
+	KeyFile    string
 }
 
 type E2EEConfig struct {
@@ -72,10 +69,6 @@ func Start(ctx context.Context, addr string, opts StartOptions) error {
 	agentConfig, err := agent.LoadConfig("")
 	if err != nil {
 		return err
-	}
-	relayBaseURL := opts.RelayBaseURL
-	if relayBaseURL == "" {
-		relayBaseURL = agentConfig.RelayBaseURL
 	}
 	agentPool := agent.NewPool(agentConfig)
 	agentProber := agent.NewProber(&agentConfig, agentPool, 5*time.Minute)
@@ -123,16 +116,6 @@ func Start(ctx context.Context, addr string, opts StartOptions) error {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	relayMgr, err := relay.NewManager(addr, opts.NoRelayer, relayBaseURL, opts.UseTLS)
-	if err != nil {
-		return err
-	}
-	services.Relay = relayMgr
-	services.RelayTips = relay.NewTipsService(relayMgr)
-	if err := relayMgr.Start(ctx); err != nil {
-		return err
-	}
-	services.RelayTips.Start(ctx)
 
 	go func() {
 		<-ctx.Done()

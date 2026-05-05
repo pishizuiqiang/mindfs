@@ -29,16 +29,11 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeDownloadPlugin.class);
         registerPlugin(NativeCacheControlPlugin.class);
-        registerPlugin(LauncherNodeSyncPlugin.class);
         super.onCreate(savedInstanceState);
         WebView.setWebContentsDebuggingEnabled(true);
         CookieManager.getInstance().setAcceptCookie(true);
         getBridge().getWebView().getSettings().setMixedContentMode(
             WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-        );
-        getBridge().getWebView().addJavascriptInterface(
-            new LauncherNodeSyncBridge(),
-            "MindFSLauncherNodeSync"
         );
         getBridge().getWebView().addJavascriptInterface(
             new NativeDownloadBridge(),
@@ -189,13 +184,6 @@ public class MainActivity extends BridgeActivity {
             }
         } finally {
             NativeCacheControlPlugin.consumeClearWebViewCacheOnNextLaunch(this);
-        }
-    }
-
-    private class LauncherNodeSyncBridge {
-        @JavascriptInterface
-        public void storeRelayNodes(String rawJSON) {
-            LauncherNodeSyncPlugin.storeRelayNodesJSON(MainActivity.this, rawJSON);
         }
     }
 

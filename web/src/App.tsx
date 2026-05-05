@@ -45,7 +45,7 @@ import {
   loadAllPlugins,
   type PluginInput,
 } from "./plugins/manager";
-import { appPath, appURL, isRelayNodePage } from "./services/base";
+import { appPath, appURL } from "./services/base";
 import { triggerUpdate, type UpdateState } from "./services/update";
 import {
   cancelScheduledWebViewCacheClear,
@@ -254,19 +254,6 @@ type LocalDirsPayload = {
   parent?: string;
   items?: LocalDirItemPayload[];
 };
-type RelayStatusPayload = {
-  relay_bound?: boolean;
-  no_relayer?: boolean;
-  pending_code?: string;
-  node_name?: string;
-  node_id?: string;
-  e2ee_node_id?: string;
-  relay_base_url?: string;
-  node_url?: string;
-  last_error?: string;
-  e2ee_required?: boolean;
-};
-const RELAY_LAST_NODE_ID_STORAGE_KEY = "mindfs.relay.last_node_id";
 const PLUGIN_QUERY_STORAGE_PREFIX = "vp-progress:";
 const TREE_SORT_STORAGE_KEY = "mindfs-tree-sort-mode";
 const DIRECTORY_SORT_OVERRIDES_STORAGE_KEY = "mindfs-directory-sort-overrides";
@@ -380,9 +367,9 @@ function openPendingPopup(): Window | null {
     return null;
   }
   try {
-    popup.document.title = "Opening Relayer...";
+    popup.document.title = "Opening...";
     popup.document.body.innerHTML =
-      '<p style="font-family: system-ui, sans-serif; padding: 16px; color: #111827;">Opening Relayer...</p>';
+      '<p style="font-family: system-ui, sans-serif; padding: 16px; color: #111827;">Opening...</p>';
   } catch {}
   return popup;
 }
@@ -402,11 +389,6 @@ function navigatePopup(popup: Window | null, url: string): void {
   }
 }
 
-function relayNodeIdFromPathname(pathname: string): string {
-  const match = /^\/n\/([^/]+)/.exec(String(pathname || ""));
-  return match?.[1] || "";
-}
-
 function isStandaloneDisplayMode(): boolean {
   if (typeof window === "undefined") {
     return false;
@@ -417,18 +399,6 @@ function isStandaloneDisplayMode(): boolean {
   return (
     window.matchMedia?.("(display-mode: standalone)")?.matches === true ||
     navigatorWithStandalone.standalone === true
-  );
-}
-
-function isRelayPWAContext(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-  return (
-    isStandaloneDisplayMode() &&
-    (/^\/n\/[^/]+/.test(window.location.pathname) ||
-      window.location.pathname === "/nodes" ||
-      window.location.pathname === "/login")
   );
 }
 
@@ -914,9 +884,6 @@ export function App({ onGoHome }: AppProps) {
     done: false,
     error: "",
   });
-  const [relayStatus, setRelayStatus] = useState<RelayStatusPayload | null>(
-    null,
-  );
   const [e2eeState, setE2eeState] = useState<E2EEState>(() =>
     e2eeService.snapshot(),
   );
@@ -1309,51 +1276,6 @@ export function App({ onGoHome }: AppProps) {
     const target = `${window.location.pathname}${search}`;
     window.history.replaceState(null, "", target);
   }, []);
-
-  const redirectToRelayLogin = useCallback(() => {
-    const next = encodeURIComponent(
-      `${window.location.pathname}${window.location.search}`,
-    );
-    window.location.replace(`/login?next=${next}`);
-  }, []);
-
-  const redirectToRelayNodes = useCallback(() => {
-    window.location.replace("/nodes");
-  }, []);
-
-  const handleRelayNavigationFailure = useCallback(
-    async (status: number, errorCode?: string | null) => {
-      if (!isRelayPWAContext()) {
-        return false;
-      }
-      const code = String(errorCode || "").trim();
-      if (status === 401 || code === "unauthorized") {
-        try {
-          const response = await fetch("/api/auth/me");
-          if (response.ok) {
-            return false;
-          }
-        } catch {}
-        redirectToRelayLogin();
-        return true;
-      }
-      if (
-        status === 403 ||
-        status === 404 ||
-        status === 502 ||
-        status === 503 ||
-        code === "forbidden" ||
-        code === "node_not_found" ||
-        code === "node_offline" ||
-        code === "connector_unavailable"
-      ) {
-        redirectToRelayNodes();
-        return true;
-      }
-      return false;
-    },
-    [redirectToRelayLogin, redirectToRelayNodes],
-  );
 
   const rootSessionKey = useCallback(
     (rootId: string, sessionKey: string) => `${rootId}::${sessionKey}`,
@@ -3631,12 +3553,6 @@ export function App({ onGoHome }: AppProps) {
           setDrawerOpenForRoot(root, false);
           if (isMobile) setIsLeftOpen(false);
         } catch (err) {
-          const status = extractHTTPStatusFromErrorMessage(
-            (err as Error)?.message || "",
-          );
-          if (status && (await handleRelayNavigationFailure(status, ""))) {
-            return;
-          }
           console.error("[file.open] failed", { root, path, cursor, err });
         }
       },
@@ -3706,14 +3622,6 @@ export function App({ onGoHome }: AppProps) {
             );
             if (!res.ok) {
               const payload = await res.json().catch(() => ({}));
-              if (
-                await handleRelayNavigationFailure(
-                  res.status,
-                  typeof payload?.error === "string" ? payload.error : "",
-                )
-              ) {
-                return;
-              }
               const message = formatDirectoryLoadError(
                 typeof payload?.error === "string" ? payload.error : "",
               );
@@ -3792,7 +3700,6 @@ export function App({ onGoHome }: AppProps) {
       },
     }),
     [
-      handleRelayNavigationFailure,
       isMobile,
       normalizeTreeResponse,
       setMainViewPreferenceForRoot,
@@ -3812,15 +3719,6 @@ export function App({ onGoHome }: AppProps) {
   const refreshManagedRoots = useCallback(async () => {
     const response = await fetch(appPath("/api/dirs"));
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      if (
-        await handleRelayNavigationFailure(
-          response.status,
-          typeof payload?.error === "string" ? payload.error : "",
-        )
-      ) {
-        return;
-      }
       return;
     }
     const dirs = (await response.json()) as ManagedRootPayload[];
@@ -3877,21 +3775,7 @@ export function App({ onGoHome }: AppProps) {
       preservePluginQuery: true,
       isRoot: true,
     });
-  }, [handleRelayNavigationFailure, replaceURLState]);
-
-  const refreshRelayStatus = useCallback(async () => {
-    try {
-      const response = await fetch(appPath("/api/relay/status"));
-      if (!response.ok) {
-        return;
-      }
-      const payload = (await response.json()) as RelayStatusPayload;
-      setRelayStatus(payload);
-      return payload;
-    } catch {
-      return;
-    }
-  }, []);
+  }, [replaceURLState]);
 
   const handleCreateRootStart = useCallback((parentPath?: string | null) => {
     if (creatingRootBusy) {
@@ -5518,27 +5402,9 @@ export function App({ onGoHome }: AppProps) {
     didInitRef.current = true;
     let cancelled = false;
     let settled = false;
-    if (isRelayPWAContext() && !isRelayNodePage()) {
-      const lastNodeID = window.localStorage.getItem(
-        RELAY_LAST_NODE_ID_STORAGE_KEY,
-      );
-      if (lastNodeID) {
-        window.location.replace(`/n/${lastNodeID}/`);
-        return;
-      }
-    }
     fetch(appPath("/api/dirs"))
       .then(async (r) => {
         if (!r.ok) {
-          const payload = await r.json().catch(() => ({}));
-          if (
-            await handleRelayNavigationFailure(
-              r.status,
-              typeof payload?.error === "string" ? payload.error : "",
-            )
-          ) {
-            return null;
-          }
           return null;
         }
         return r.json();
@@ -5547,7 +5413,6 @@ export function App({ onGoHome }: AppProps) {
         if (!dirs) {
           return;
         }
-        void refreshRelayStatus();
         if (cancelled || !dirs.length) {
           return;
         }
@@ -5626,9 +5491,7 @@ export function App({ onGoHome }: AppProps) {
     };
   }, [
     ensurePluginsLoaded,
-    handleRelayNavigationFailure,
     loadSessionsForRoot,
-    refreshRelayStatus,
     refreshTreeDir,
     tryShowBoundSessionForRoot,
   ]);
@@ -5638,12 +5501,6 @@ export function App({ onGoHome }: AppProps) {
       setE2eeState(state);
     });
   }, []);
-
-  useEffect(() => {
-    const nodeId = String(relayStatus?.e2ee_node_id || relayStatus?.node_id || "").trim();
-    const required = relayStatus?.e2ee_required === true;
-    e2eeService.configure(required, nodeId);
-  }, [relayStatus?.e2ee_required, relayStatus?.e2ee_node_id, relayStatus?.node_id]);
 
   useEffect(() => {
     if (!e2eeState.required) {
@@ -5695,17 +5552,6 @@ export function App({ onGoHome }: AppProps) {
       setE2eePromptBusy(false);
     }
   }, [describeE2EEPromptError, e2eeSecretInput]);
-
-  useEffect(() => {
-    if (!isRelayPWAContext()) {
-      return;
-    }
-    const nodeID = relayNodeIdFromPathname(window.location.pathname);
-    if (!nodeID) {
-      return;
-    }
-    window.localStorage.setItem(RELAY_LAST_NODE_ID_STORAGE_KEY, nodeID);
-  }, []);
 
   useEffect(() => {
     function handlePopState() {
@@ -6426,54 +6272,6 @@ export function App({ onGoHome }: AppProps) {
     });
   }, [file, actionHandlers]);
 
-  const handleRelayAction = useCallback(async () => {
-    if (!currentRootId) {
-      return;
-    }
-    const pendingPopup = openPendingPopup();
-    const latestStatus = await refreshRelayStatus();
-    const nextStatus = latestStatus || relayStatus;
-    if (!nextStatus) {
-      pendingPopup?.close();
-      return;
-    }
-    const nodeURL = String(nextStatus?.node_url || "");
-    if (nextStatus?.relay_bound && nodeURL) {
-      const target = new URL(nodeURL, window.location.origin);
-      target.searchParams.set("root", currentRootId);
-      navigatePopup(pendingPopup, target.toString());
-      return;
-    }
-    const pendingCode = String(nextStatus?.pending_code || "");
-    const nodeName = String(nextStatus?.node_name || "");
-    const relayBaseURL = String(nextStatus?.relay_base_url || "");
-    if (!pendingCode || !relayBaseURL) {
-      pendingPopup?.close();
-      return;
-    }
-    const target = new URL("/bind", relayBaseURL);
-    target.searchParams.set("code", pendingCode);
-    target.searchParams.set("root", currentRootId);
-    if (nodeName) {
-      target.searchParams.set("node_name", nodeName);
-    }
-    navigatePopup(pendingPopup, target.toString());
-  }, [currentRootId, refreshRelayStatus, relayStatus]);
-
-  const relayActionLabel = useMemo(() => {
-    if (isRelayNodePage()) {
-      return null;
-    }
-    if (relayStatus?.no_relayer) {
-      return null;
-    }
-    return "从公网访问";
-  }, [relayStatus]);
-
-  const relayActionDisabled =
-    !currentRootId ||
-    (!relayStatus?.relay_bound &&
-      (!relayStatus?.pending_code || !relayStatus?.relay_base_url));
   const showUpdateButton = shouldShowUpdateButton(updateState);
   const updateBusy =
     updateSubmitting ||
@@ -6791,10 +6589,6 @@ export function App({ onGoHome }: AppProps) {
                 isRoot: e.is_root === true,
               })
             }
-            relayActionLabel={relayActionLabel}
-            relayActionDisabled={relayActionDisabled}
-            relayActionHelp={null}
-            onRelayAction={handleRelayAction}
             updateActionLabel={showUpdateButton ? updateLabel : null}
             updateActionDisabled={updateBusy}
             updateActionHelp={showUpdateButton ? updateHelp : ""}

@@ -225,8 +225,6 @@ func (h *HTTPHandler) Routes() http.Handler {
 	r.Post("/api/dirs", h.handleAddDir)
 	r.Delete("/api/dirs", h.handleRemoveDir)
 	r.Get("/api/local_dirs", h.handleLocalDirs)
-	r.Get("/api/relay/status", h.handleRelayStatus)
-	r.Get("/api/relay/tips", h.handleRelayTips)
 	r.Post("/api/e2ee/open", h.handleE2EEOpen)
 	r.Get("/api/app/update", h.handleAppUpdateGet)
 	r.Post("/api/app/update", h.handleAppUpdatePost)
@@ -1183,33 +1181,6 @@ func readManagedDirPath(r *http.Request) string {
 		return ""
 	}
 	return strings.TrimSpace(req.Path)
-}
-
-func (h *HTTPHandler) handleRelayStatus(w http.ResponseWriter, _ *http.Request) {
-	manager := h.AppContext.GetRelayManager()
-	if manager == nil {
-		respondError(w, http.StatusServiceUnavailable, errServiceUnavailable("relay manager not configured"))
-		return
-	}
-	status := manager.Status()
-	if e2eeManager := h.AppContext.GetE2EEManager(); e2eeManager != nil {
-		status.E2EERequired = e2eeManager.Enabled()
-		if status.E2EERequired {
-			status.E2EENodeID = e2eeManager.NodeID()
-			if strings.TrimSpace(status.NodeID) == "" {
-				status.NodeID = e2eeManager.NodeID()
-			}
-		}
-	}
-	respondJSON(w, http.StatusOK, status)
-}
-
-func (h *HTTPHandler) handleRelayTips(w http.ResponseWriter, _ *http.Request) {
-	if h.AppContext == nil || h.AppContext.GetRelayTipsService() == nil {
-		respondJSON(w, http.StatusOK, nil)
-		return
-	}
-	respondJSON(w, http.StatusOK, h.AppContext.GetRelayTipsService().Get())
 }
 
 func (h *HTTPHandler) handleE2EEOpen(w http.ResponseWriter, r *http.Request) {
