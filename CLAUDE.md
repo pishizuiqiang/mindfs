@@ -51,6 +51,30 @@ make dev          # or: go run ./cli/cmd
 ADDR=:9000 make dev
 ```
 
+### Starting MindFS Server
+
+```bash
+# Start with compiled binary
+./mindfs
+
+# Start on specific interface
+./mindfs -addr 192.168.10.103:7331  # LAN only
+./mindfs -addr 0.0.0.0:7331         # All interfaces (use with caution)
+
+# Start with specific root directory
+./mindfs -addr 192.168.10.103:7331 /path/to/project
+
+# Check if mindfs is running
+lsof -i :7331 | grep LISTEN
+ps aux | grep mindfs | grep -v grep
+```
+
+**Security Note**: 
+- Default `127.0.0.1:7331` only allows local access
+- Use specific LAN IP (e.g., `192.168.10.103:7331`) for local network access only
+- Avoid `0.0.0.0:7331` unless you need external access and have proper firewall rules
+- Check for public IP exposure: `curl -s ifconfig.me`
+
 ### Building
 
 ```bash
