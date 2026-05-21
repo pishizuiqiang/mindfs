@@ -31,6 +31,7 @@ Access your personal AI agents and workstation data anywhere, anytime through Mi
 - **Binding persistence and recovery**: MindFS persists the mapping between its internal session and the underlying agent session, so the link can be restored after service restarts and follow-up messages continue on the same agent session when available.
 - **Rich media input**: Attach files and images directly in your messages.
 - **Multi-device sync**: Access the same instance from multiple devices simultaneously with live session sync.
+- **Configuration backup and switching**: Agent configurations can be backed up and switched with one click, making it easier to move between multiple accounts or API keys.
 
 ### File Access
 
@@ -166,6 +167,37 @@ Flags:
   -key string    TLS private key file (PEM); requires -tls
 ```
 
+`root` is the directory to manage. If omitted, MindFS opens without adding a directory.
+
+By default, `mindfs` starts or reuses a background service and opens the browser. Pass `root` to register a directory; if a service is already running on the selected address, the command reuses it and adds that directory.
+
+#### Common Commands
+
+```bash
+mindfs
+mindfs /path/to/project
+mindfs -addr :9000 /path/to/project
+mindfs -foreground /path/to/project
+mindfs -status
+mindfs -stop
+mindfs -restart
+mindfs -remove /path/to/project
+```
+
+#### Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-addr string` | `127.0.0.1:7331` | Listen address. Use `:7331` or `0.0.0.0:7331` to allow LAN access. |
+| `-foreground` | `false` | Run the server in the foreground instead of starting a background service. |
+| `-status` | `false` | Show background service status, PID, URL, and log file path. |
+| `-stop` | `false` | Stop the background service for the selected address. |
+| `-restart` | `false` | Stop the background service if present, then start it again. |
+| `-remove` | `false` | Remove `root` from the managed directory list. If the server is running, it is removed through the local API; otherwise it is removed from the local registry. |
+| `-e2ee` | `false` | Enable end-to-end encryption for sensitive data. The pairing code can also be used as an authentication mechanism: unpaired frontends cannot access node content. LAN access requires `-tls` to work correctly. On first enablement, the CLI prints the pairing secret. |
+| `-tls` | `false` | Enable HTTPS. If `-cert` and `-key` are not provided, MindFS generates and reuses a local self-signed certificate. |
+| `-cert string` | empty | TLS certificate file in PEM format. Used with `-tls`; auto-generated when empty. |
+| `-key string` | empty | TLS private key file in PEM format. Used with `-tls`; auto-generated when empty. |
 ---
 
 ## Contributing
