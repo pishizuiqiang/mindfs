@@ -271,6 +271,7 @@ type LocalDirItemPayload = {
 type LocalDirsPayload = {
   path?: string;
   parent?: string;
+  volumes?: LocalDirItemPayload[];
   items?: LocalDirItemPayload[];
 };
 const PLUGIN_QUERY_STORAGE_PREFIX = "vp-progress:";
@@ -886,6 +887,7 @@ export function App({ onGoHome }: AppProps) {
   const [localDirState, setLocalDirState] = useState<LocalDirBrowserState>({
     path: "",
     parent: "",
+    volumes: [],
     items: [],
     loading: false,
     selectedPath: "",
@@ -3887,6 +3889,15 @@ export function App({ onGoHome }: AppProps) {
       setLocalDirState({
         path: String(payload.path || trimmed),
         parent: String(payload.parent || ""),
+        volumes: Array.isArray(payload.volumes)
+          ? payload.volumes.map((item) => ({
+              name: String(item.name || ""),
+              path: String(item.path || ""),
+              is_dir: item.is_dir !== false,
+              is_added_root: item.is_added_root === true,
+              root_id: String(item.root_id || ""),
+            }))
+          : [],
         items: Array.isArray(payload.items)
           ? payload.items.map((item) => ({
               name: String(item.name || ""),
