@@ -26,6 +26,8 @@ export type ErrorCode =
   | "file.not_found"
   | "file.read_failed"
   | "file.write_failed"
+  // Clipboard errors
+  | "clipboard.write_failed"
   // Skill errors
   | "skill.not_found"
   | "skill.execute_failed"
@@ -202,6 +204,11 @@ class ErrorService {
       "file.write_failed": {
         message: "写入文件失败",
         severity: "error",
+        recoverable: true,
+      },
+      "clipboard.write_failed": {
+        message: "复制失败",
+        severity: "warning",
         recoverable: true,
       },
       "skill.not_found": {
