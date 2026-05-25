@@ -9,6 +9,25 @@ import {
   sortDirectoryEntries,
 } from "../services/directorySort";
 import { appPath } from "../services/base";
+import { protectedJSON } from "../services/api";
+import { bootstrapService } from "../services/bootstrap";
+import {
+  APPEARANCE_CHANGE_EVENT,
+  getAppearanceMode,
+  setAppearanceMode,
+  type AppearanceMode,
+} from "../services/appearance";
+import { AgentMenuList } from "./AgentMenuList";
+import { SymlinkBadge } from "./SymlinkBadge";
+import { fetchAgents, type AgentStatus } from "../services/agents";
+import {
+  createAgentConfigBackup,
+  deleteAgentConfigBackup,
+  fetchAgentConfigBackups,
+  fetchAgentConfigDefaults,
+  switchAgentConfig,
+  type AgentConfigBackup,
+} from "../services/agentConfig";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -17,6 +36,12 @@ type BeforeInstallPromptEvent = Event & {
 
 const PWA_INSTALL_STATE_KEY = "mindfs-pwa-installed";
 const RELAYER_AD_DISMISS_STORAGE_KEY = "mindfs-relayer-ad-dismissed";
+
+const APPEARANCE_OPTIONS: Array<{ value: AppearanceMode; label: string }> = [
+  { value: "dark", label: "深色模式" },
+  { value: "light", label: "浅色模式" },
+  { value: "system", label: "跟随系统" },
+];
 
 type RelayTip = {
   id: string;
@@ -169,6 +194,9 @@ export function FileTree({
 }: FileTreeProps) {
   const expandedSet = new Set(expanded);
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [isAppearanceMenuOpen, setIsAppearanceMenuOpen] = React.useState(false);
+  const [isSortMenuOpen, setIsSortMenuOpen] = React.useState(false);
+  const [appearanceMode, setAppearanceModeState] = React.useState<AppearanceMode>(() => getAppearanceMode());
   const [isUpdateNotesOpen, setIsUpdateNotesOpen] = React.useState(false);
   const [deferredInstallPrompt, setDeferredInstallPrompt] = React.useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = React.useState(false);
@@ -240,6 +268,38 @@ export function FileTree({
       Capacitor?: { getPlatform?: () => string };
     }).Capacitor?.getPlatform?.();
     return platform === "android";
+  }, []);
+
+  React.useEffect(() => {
+    const syncAppearanceMode = () => {
+      setAppearanceModeState(getAppearanceMode());
+    };
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, syncAppearanceMode);
+    window.addEventListener("storage", syncAppearanceMode);
+    return () => {
+      window.removeEventListener(APPEARANCE_CHANGE_EVENT, syncAppearanceMode);
+      window.removeEventListener("storage", syncAppearanceMode);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const refreshNativeRuntime = () => {
+      setIsNativeApp(isNativeShellRuntime());
+    };
+    refreshNativeRuntime();
+    const timers = [250, 1000, 2000].map((delay) => window.setTimeout(refreshNativeRuntime, delay));
+    window.addEventListener("mindfs:native-bridge-ready", refreshNativeRuntime);
+    window.addEventListener("pageshow", refreshNativeRuntime);
+    window.addEventListener("focus", refreshNativeRuntime);
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      window.removeEventListener("mindfs:native-bridge-ready", refreshNativeRuntime);
+      window.removeEventListener("pageshow", refreshNativeRuntime);
+      window.removeEventListener("focus", refreshNativeRuntime);
+    };
   }, []);
 
   const isDesktopChromium = React.useMemo(() => {
@@ -740,7 +800,16 @@ export function FileTree({
         <div ref={menuRef} style={{ position: "relative" }}>
           <button
             type="button"
-            onClick={() => setIsMenuOpen((open) => !open)}
+            onClick={() => {
+              setIsMenuOpen((open) => {
+                const nextOpen = !open;
+                if (nextOpen) {
+                  setIsAppearanceMenuOpen(false);
+                  setIsSortMenuOpen(false);
+                }
+                return nextOpen;
+              });
+            }}
             aria-label="打开文件树菜单"
             style={{
               width: "28px",
@@ -786,6 +855,8 @@ export function FileTree({
                       onCreateRootStart?.();
                     }
                     setIsMenuOpen(false);
+                    setIsAppearanceMenuOpen(false);
+                    setIsSortMenuOpen(false);
                   }}
                   style={{
                     width: "100%",
@@ -809,8 +880,91 @@ export function FileTree({
                   <span>添加项目</span>
                 </button>
                 <div style={{ height: "1px", background: "var(--border-color)", margin: "6px 4px" }} />
-                <div style={{ padding: "4px 8px", fontSize: "11px", color: "var(--text-secondary)" }}>全局排序</div>
-                {DIRECTORY_SORT_OPTIONS.map((option) => {
+                <button
+                  type="button"
+                  onClick={() => setIsAppearanceMenuOpen((open) => !open)}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    background: "transparent",
+                    color: "var(--text-primary)",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                  }}
+                  aria-expanded={isAppearanceMenuOpen}
+                >
+                  <span style={{ flex: 1 }}>外观</span>
+                  <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
+                    {APPEARANCE_OPTIONS.find((option) => option.value === appearanceMode)?.label || "跟随系统"}
+                  </span>
+                  <ChevronRight isOpen={isAppearanceMenuOpen} />
+                </button>
+                {isAppearanceMenuOpen ? APPEARANCE_OPTIONS.map((option) => {
+                  const active = option.value === appearanceMode;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setAppearanceMode(option.value);
+                        setAppearanceModeState(option.value);
+                        setIsMenuOpen(false);
+                        setIsAppearanceMenuOpen(false);
+                        setIsSortMenuOpen(false);
+                      }}
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        background: active ? "var(--selection-bg)" : "transparent",
+                        color: active ? "var(--accent-color)" : "var(--text-primary)",
+                        borderRadius: "8px",
+                        padding: "8px 10px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                      }}
+                    >
+                      <span>{option.label}</span>
+                      <span style={{ fontSize: "11px", opacity: active ? 1 : 0 }}>✓</span>
+                    </button>
+                  );
+                }) : null}
+                <div style={{ height: "1px", background: "var(--border-color)", margin: "6px 4px" }} />
+                <button
+                  type="button"
+                  onClick={() => setIsSortMenuOpen((open) => !open)}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    background: "transparent",
+                    color: "var(--text-primary)",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                  }}
+                  aria-expanded={isSortMenuOpen}
+                >
+                  <span style={{ flex: 1 }}>全局排序</span>
+                  <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
+                    {DIRECTORY_SORT_OPTIONS.find((option) => option.value === sortMode)?.label || "默认"}
+                  </span>
+                  <ChevronRight isOpen={isSortMenuOpen} />
+                </button>
+                {isSortMenuOpen ? DIRECTORY_SORT_OPTIONS.map((option) => {
                 const active = option.value === sortMode;
                 return (
                   <button
@@ -819,6 +973,8 @@ export function FileTree({
                     onClick={() => {
                       onSortModeChange?.(option.value as DirectorySortMode);
                       setIsMenuOpen(false);
+                      setIsAppearanceMenuOpen(false);
+                      setIsSortMenuOpen(false);
                     }}
                     style={{
                       width: "100%",
@@ -839,11 +995,15 @@ export function FileTree({
                     <span style={{ fontSize: "11px", opacity: active ? 1 : 0 }}>✓</span>
                   </button>
                 );
-              })}
+              }) : null}
               <div style={{ height: "1px", background: "var(--border-color)", margin: "6px 4px" }} />
               <button
                 type="button"
-                onClick={() => onShowHiddenFilesChange?.(!showHiddenFiles)}
+                onClick={() => {
+                  onShowHiddenFilesChange?.(!showHiddenFiles);
+                  setIsAppearanceMenuOpen(false);
+                  setIsSortMenuOpen(false);
+                }}
                 style={{
                   width: "100%",
                   border: "none",
@@ -862,6 +1022,33 @@ export function FileTree({
                 <span>显示隐藏文件</span>
                 <span style={{ fontSize: "11px", opacity: showHiddenFiles ? 1 : 0 }}>✓</span>
               </button>
+              {showEnterKeySendOption ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onEnterKeySendsChange?.(!enterKeySends);
+                    setIsAppearanceMenuOpen(false);
+                    setIsSortMenuOpen(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    background: enterKeySends ? "var(--selection-bg)" : "transparent",
+                    color: enterKeySends ? "var(--accent-color)" : "var(--text-primary)",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  <span>回车键发送</span>
+                  <span style={{ fontSize: "11px", opacity: enterKeySends ? 1 : 0 }}>✓</span>
+                </button>
+              ) : null}
             </div>
           ) : null}
           {projectAddOverlay ? (
