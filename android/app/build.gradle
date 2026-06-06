@@ -3,6 +3,7 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.mindfs.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    buildToolsVersion = "29.0.3"
     defaultConfig {
         applicationId "com.mindfs.app"
         minSdkVersion rootProject.ext.minSdkVersion
