@@ -413,7 +413,6 @@ function LocalPanel({
       ? "pointer"
       : "not-allowed";
   const volumes = Array.isArray(localState.volumes) ? localState.volumes : [];
->>>>>>> dbcc6ec (refine: windows directory browse for add project)
 
   return (
     <div style={popoverStyle}>

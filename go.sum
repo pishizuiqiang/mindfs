@@ -30,6 +30,8 @@ github.com/yandc/claude-agent-sdk-go v0.0.0-20260522150919-fb65168f43b8 h1:vC5GM
 github.com/yandc/claude-agent-sdk-go v0.0.0-20260522150919-fb65168f43b8/go.mod h1:F0UH/dW/gpCuTfWRWa2qwT18HeiYwUTSd+Q6KSFHIjo=
 github.com/yandc/codex-go-sdk v0.0.0-20260430050332-586d2fcdc38e h1:k6M+rKV5CbEJVNbfPlUa6dDsslnECa48+i5eWQRXAtA=
 github.com/yandc/codex-go-sdk v0.0.0-20260430050332-586d2fcdc38e/go.mod h1:YTvQqlQmaABafBpZf5dftTiLj03hBgoR8a9UTZR/TNQ=
+github.com/yandc/codex-go-sdk v0.0.0-20260507022132-674662c240f3 h1:kX6D390+njqEmU+zDJP7u5ipp3Bp8G0+OhDU80fsrIM=
+github.com/yandc/codex-go-sdk v0.0.0-20260507022132-674662c240f3/go.mod h1:YTvQqlQmaABafBpZf5dftTiLj03hBgoR8a9UTZR/TNQ=
 github.com/yandc/codex-go-sdk v0.0.0-20260518073759-7bc2e8d2227f h1:43ekzcss89fwKXkynudk61n8cg6/Ttnm2iIkvmHP0Kw=
 github.com/yandc/codex-go-sdk v0.0.0-20260518073759-7bc2e8d2227f/go.mod h1:YTvQqlQmaABafBpZf5dftTiLj03hBgoR8a9UTZR/TNQ=
 golang.org/x/crypto v0.50.0 h1:zO47/JPrL6vsNkINmLoo/PH1gcxpls50DNogFvB5ZGI=
