@@ -139,10 +139,6 @@ function isNativeLauncherOrigin(): boolean {
   }
   const hostname = window.location.hostname.toLowerCase();
   return hostname === "localhost" || hostname === "127.0.0.1";
-    return false;
-  }
-  const hostname = window.location.hostname.toLowerCase();
-  return hostname === "localhost" || hostname === "127.0.0.1";
 }
 
 function normalizeSystemBarColor(input: string, fallback: string): string {
